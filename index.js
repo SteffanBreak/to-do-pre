@@ -1,4 +1,4 @@
-const defaultItems = [
+const defaultTasks = [
 	"Сделать проектную работу",
 	"Полить цветы",
 	"Пройти туториал по Реакту",
@@ -7,118 +7,97 @@ const defaultItems = [
 	"Помыть посуду",
 ];
 
-let items = [];
+const key = "tasks";
 
-const STORAGE_KEY = "tasks";
+const list = document.querySelector(".to-do__list");
+const form = document.querySelector(".to-do__form");
+const input = document.querySelector(".to-do__input");
 
-const listElement = document.querySelector(".to-do__list");
-const formElement = document.querySelector(".to-do__form");
-const inputElement = document.querySelector(".to-do__input");
-
-function readFromStorage() {
-	const data = localStorage.getItem(STORAGE_KEY);
-	if (!data) {
-		return null;
+function load() {
+	const raw = localStorage.getItem(key);
+	if (!raw) {
+		return defaultTasks;
 	}
 	try {
-		return JSON.parse(data);
+		const data = JSON.parse(raw);
+		if (Array.isArray(data)) {
+			return data;
+		}
+		return defaultTasks;
 	} catch (e) {
-		return null;
+		return defaultTasks;
 	}
 }
 
-function loadTasks() {
-	const stored = readFromStorage();
-	if (Array.isArray(stored)) {
-		return stored;
-	}
-	return defaultItems;
+function save(tasks) {
+	localStorage.setItem(key, JSON.stringify(tasks));
 }
 
-function saveTasks(tasks) {
-	localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-}
-
-function getTasksFromDOM() {
-	const textElements = listElement.querySelectorAll(".to-do__item-text");
+function collect() {
+	const els = list.querySelectorAll(".to-do__item-text");
 	const tasks = [];
-	for (const el of textElements) {
+	for (const el of els) {
 		tasks.push(el.textContent);
 	}
 	return tasks;
 }
 
-function updateItemsAndSave() {
-	items = getTasksFromDOM();
-	saveTasks(items);
-}
-
-function setEditable(textElement, editable) {
-	if (editable) {
-		textElement.setAttribute("contenteditable", "true");
-	} else {
-		textElement.setAttribute("contenteditable", "false");
-	}
-}
-
-function createItem(taskText) {
+function makeTask(text) {
 	const template = document.getElementById("to-do__item-template");
-	const clone = template.content.querySelector(".to-do__item").cloneNode(true);
+	const item = template.content.querySelector(".to-do__item").cloneNode(true);
 
-	const textElement = clone.querySelector(".to-do__item-text");
-	const deleteButton = clone.querySelector(".to-do__item-button_type_delete");
-	const duplicateButton = clone.querySelector(".to-do__item-button_type_duplicate");
-	const editButton = clone.querySelector(".to-do__item-button_type_edit");
+	const textEl = item.querySelector(".to-do__item-text");
+	const delBtn = item.querySelector(".to-do__item-button_type_delete");
+	const copyBtn = item.querySelector(".to-do__item-button_type_duplicate");
+	const editBtn = item.querySelector(".to-do__item-button_type_edit");
 
-	textElement.textContent = taskText;
-	setEditable(textElement, false);
+	textEl.textContent = text;
+	textEl.setAttribute("contenteditable", "false");
 
-	deleteButton.addEventListener("click", function () {
-		clone.remove();
-		updateItemsAndSave();
+	delBtn.addEventListener("click", function () {
+		item.remove();
+		save(collect());
 	});
 
-	duplicateButton.addEventListener("click", function () {
-		const copyText = textElement.textContent;
-		const copyElement = createItem(copyText);
-		listElement.prepend(copyElement);
-		updateItemsAndSave();
+	copyBtn.addEventListener("click", function () {
+		list.prepend(makeTask(textEl.textContent));
+		save(collect());
 	});
 
-	editButton.addEventListener("click", function () {
-		setEditable(textElement, true);
-		textElement.focus();
+	editBtn.addEventListener("click", function () {
+		textEl.setAttribute("contenteditable", "true");
+		textEl.focus();
 	});
 
-	textElement.addEventListener("blur", function () {
-		setEditable(textElement, false);
-		updateItemsAndSave();
+	textEl.addEventListener("blur", function () {
+		textEl.setAttribute("contenteditable", "false");
+		save(collect());
 	});
 
-	return clone;
+	return item;
 }
 
-function renderTasks(tasks) {
-	for (const task of tasks) {
-		listElement.append(createItem(task));
+function render(tasks) {
+	for (const t of tasks) {
+		list.append(makeTask(t));
 	}
 }
 
-function handleFormSubmit(evt) {
+function onSubmit(evt) {
 	evt.preventDefault();
 
-	const value = inputElement.value.trim();
+	const value = input.value.trim();
 	if (value === "") {
 		return;
 	}
 
-	listElement.prepend(createItem(value));
-	inputElement.value = "";
-	updateItemsAndSave();
+	list.prepend(makeTask(value));
+	input.value = "";
+	save(collect());
 }
 
-items = loadTasks();
-renderTasks(items);
-saveTasks(items);
+const startTasks = load();
+render(startTasks);
+save(startTasks);
 
-formElement.addEventListener("submit", handleFormSubmit);
+form.addEventListener("submit", onSubmit);
